@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ha1kaa · SimRacing Tools & Broadcast</title>
+<meta name="description" content="Ha1kaa — Desarrollo de herramientas para SimRacing, producción de transmisiones en vivo (CSR Esports) y overlays (MotrixTools).">
+<meta name="theme-color" content="#05060A">
+<meta property="og:title" content="Ha1kaa · SimRacing Tools & Broadcast">
+<meta property="og:description" content="Herramientas para Live for Speed / Assetto Corsa, transmisiones de CSR Esports y overlays de MotrixTools.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+<style>
+/* ==========================================================================
+   1. VARIABLES — cambia colores, radios y tipografías aquí
+   ========================================================================== */
+:root {
+  --bg:            #05060A;               /* fondo principal */
+  --surface:       #0A0C10;               /* tarjetas */
+  --surface-2:     #0E1116;               /* tarjetas en hover / chips */
+  --border:        rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.14);
+
+  --text:          #E8ECF2;
+  --text-muted:    #8A93A3;
+  --text-dim:      #5A6272;
+
+  --accent:        #22D3EE;               /* cyan eléctrico */
+  --accent-rgb:    34, 211, 238;
+  --gold:          #F5B544;               /* solo para badges destacados */
+  --gold-rgb:      245, 181, 68;
+  --live:          #34D399;               /* punto "disponible" */
+
+  --radius-lg:     20px;
+  --radius-md:     14px;
+  --radius-sm:     10px;
+
+  --font-display:  "Space Grotesk", system-ui, sans-serif;
+  --font-body:     "Inter", system-ui, sans-serif;
+  --font-mono:     "JetBrains Mono", ui-monospace, monospace;
+
+  --maxw:          760px;
+  --ease:          cubic-bezier(.2,.8,.2,1);
+}
+
+/* ==========================================================================
+   2. BASE
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 15px/1.6 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+img { display: block; max-width: 100%; }
+svg { flex-shrink: 0; }
+::selection { background: rgba(var(--accent-rgb), .3); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+/* ==========================================================================
+   3. FONDO VIVO — grilla técnica + gradiente radial lento
+   ========================================================================== */
+.bg {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+}
+.bg__grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 100%);
+}
+.bg__glow {
+  position: absolute; width: 900px; height: 900px; left: 50%; top: -420px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(var(--accent-rgb), .13), transparent 60%);
+  filter: blur(20px);
+  animation: drift 18s ease-in-out infinite alternate;
+}
+.bg__glow--2 {
+  width: 600px; height: 600px; top: 55%; left: 85%;
+  background: radial-gradient(circle, rgba(99, 102, 241, .08), transparent 60%);
+  animation-duration: 24s;
+}
+@keyframes drift {
+  from { transform: translate(-50%, 0) scale(1); }
+  to   { transform: translate(-44%, 40px) scale(1.08); }
+}
+
+/* ==========================================================================
+   4. LAYOUT
+   ========================================================================== */
+.wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 56px 16px 32px; }
+section { margin-top: 56px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.section-head h2 {
+  margin: 0; font: 600 13px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.section-head h2 span { color: var(--accent); margin-right: 8px; }
+.section-head p { margin: 0; font-size: 13px; color: var(--text-dim); }
+
+/* ==========================================================================
+   5. TARJETA BASE — glass + spotlight que sigue al cursor
+   ========================================================================== */
+.card {
+  position: relative;
+  background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,0) 40%), var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform .4s var(--ease), border-color .3s, background-color .3s;
+}
+/* spotlight interior */
+.card::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0;
+  background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 50%), rgba(var(--accent-rgb), .09), transparent 45%);
+  transition: opacity .35s;
+}
+/* brillo de borde */
+.card::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none; opacity: 0;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(var(--accent-rgb), .55), transparent 50%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  transition: opacity .35s;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card:hover::before, .card:hover::after { opacity: 1; }
+  .card.is-link:hover { transform: translateY(-3px); border-color: var(--border-strong); }
+}
+
+/* ==========================================================================
+   6. HERO
+   ========================================================================== */
+.hero { padding: 32px; display: grid; gap: 24px; }
+.hero__top { display: flex; align-items: center; gap: 20px; }
+.avatar {
+  position: relative; width: 88px; height: 88px; flex-shrink: 0; border-radius: 50%;
+}
+.avatar__ring {
+  position: absolute; inset: -4px; border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(var(--accent-rgb), 0), rgba(var(--accent-rgb), .9), rgba(var(--accent-rgb), 0) 40%, rgba(var(--accent-rgb), 0));
+  animation: spin 6s linear infinite;
+}
+.avatar__ring::after { content: ""; position: absolute; inset: 2px; border-radius: 50%; background: var(--surface); }
+.avatar__img, .avatar__fallback {
+  position: absolute; inset: 2px; border-radius: 50%; object-fit: cover; z-index: 1;
+  border: 1px solid var(--border-strong);
+}
+.avatar__fallback {
+  display: grid; place-items: center; font: 700 28px var(--font-display); color: var(--accent);
+  background: radial-gradient(circle at 30% 25%, #142030, #07090d);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.hero h1 {
+  margin: 0; font: 700 clamp(32px, 6vw, 44px)/1 var(--font-display); letter-spacing: -.03em;
+}
+.hero h1 .one { color: var(--accent); }
+.hero__role { margin: 8px 0 0; font: 500 13px/1.4 var(--font-mono); color: var(--text-muted); }
+
+.status {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 12px;
+  padding: 6px 12px 6px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 500; color: #CFF7E6;
+  background: rgba(52, 211, 153, .08); border: 1px solid rgba(52, 211, 153, .22);
+}
+.status__dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--live); }
+.status__dot::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--live);
+  animation: ping 1.8s var(--ease) infinite;
+}
+@keyframes ping { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.8); opacity: 0; } }
+
+.hero__bio { margin: 0; color: var(--text-muted); font-size: 15.5px; max-width: 58ch; }
+.hero__bio strong { color: var(--text); font-weight: 600; }
+
+.hero__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px;
+  border-radius: 12px; font: 600 14px var(--font-body); cursor: pointer; border: 1px solid transparent;
+  transition: transform .25s var(--ease), box-shadow .25s, background-color .25s, border-color .25s;
+}
+.btn--primary { background: var(--accent); color: #031317; box-shadow: 0 0 0 0 rgba(var(--accent-rgb), .0); }
+.btn--primary:hover { transform: translateY(-1px); box-shadow: 0 8px 28px -6px rgba(var(--accent-rgb), .55); }
+.btn--ghost { background: var(--surface-2); border-color: var(--border); color: var(--text); }
+.btn--ghost:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.btn svg { width: 16px; height: 16px; transition: transform .25s var(--ease); }
+.btn:hover svg.arrow { transform: translateX(3px); }
+
+.socials { display: flex; gap: 6px; margin-left: auto; }
+.icon-btn {
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px;
+  color: var(--text-muted); background: transparent; border: 1px solid var(--border);
+  transition: color .2s, border-color .2s, background-color .2s, transform .25s var(--ease);
+}
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); transform: translateY(-2px); }
+
+/* ==========================================================================
+   7. PROYECTOS — bento grid
+   ========================================================================== */
+.bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.project { padding: 24px; display: flex; flex-direction: column; gap: 14px; min-height: 220px; }
+.project--wide { grid-column: span 6; }
+.project--half { grid-column: span 3; }
+.project--third { grid-column: span 2; min-height: 0; }
+
+.project__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.project__logo {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+  background: rgba(var(--accent-rgb), .08); border: 1px solid rgba(var(--accent-rgb), .2); color: var(--accent);
+}
+.project__logo svg { width: 22px; height: 22px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  font: 500 11px/1.4 var(--font-mono); letter-spacing: .04em; text-transform: uppercase;
+  color: var(--text-muted); border: 1px solid var(--border); background: rgba(255,255,255,.02);
+}
+.badge--gold { color: var(--gold); border-color: rgba(var(--gold-rgb), .3); background: rgba(var(--gold-rgb), .07); }
+.badge--live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #F43F5E; box-shadow: 0 0 8px #F43F5E; }
+
+.project h3 { margin: 0; font: 600 21px/1.2 var(--font-display); letter-spacing: -.01em; }
+.project h3 small { display: block; margin-top: 4px; font: 500 12.5px var(--font-mono); color: var(--text-dim); letter-spacing: 0; }
+.project p { margin: 0; color: var(--text-muted); font-size: 14.5px; }
+
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.tag {
+  padding: 3px 9px; border-radius: 7px; font: 500 11.5px var(--font-mono);
+  color: #A8B3C4; background: var(--surface-2); border: 1px solid var(--border);
+}
+.project__links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
+.chip-link {
+  display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px; border-radius: 10px;
+  font-size: 13px; font-weight: 500; color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
+  transition: border-color .2s, background-color .2s, color .2s;
+}
+.chip-link svg { width: 15px; height: 15px; }
+.chip-link:hover { border-color: rgba(var(--accent-rgb), .4); color: var(--accent); }
+
+.arrow-corner {
+  width: 18px; height: 18px; color: var(--text-dim);
+  transition: transform .3s var(--ease), color .3s;
+}
+.is-link:hover .arrow-corner { transform: translate(3px, -3px); color: var(--accent); }
+
+/* mini proyectos */
+.mini { padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+.mini__top { display: flex; align-items: center; justify-content: space-between; }
+.mini h4 { margin: 4px 0 0; font: 600 15px var(--font-display); }
+.mini p { margin: 0; font-size: 13px; color: var(--text-dim); }
+
+/* ==========================================================================
+   8. SERVICIOS
+   ========================================================================== */
+.services { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.service { padding: 20px; }
+.service__icon {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; margin-bottom: 14px;
+  color: var(--accent); background: rgba(var(--accent-rgb), .08); border: 1px solid rgba(var(--accent-rgb), .18);
+}
+.service__icon svg { width: 18px; height: 18px; }
+.service h3 { margin: 0 0 6px; font: 600 15.5px var(--font-display); }
+.service p { margin: 0; font-size: 13.5px; color: var(--text-muted); line-height: 1.55; }
+
+/* ==========================================================================
+   9. LINKS
+   ========================================================================== */
+.links { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.link-row {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: var(--radius-md);
+}
+.link-row__icon {
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  transition: color .25s, border-color .25s, background-color .25s;
+}
+.link-row__icon svg { width: 19px; height: 19px; }
+.link-row__text { min-width: 0; flex: 1; }
+.link-row__text strong { display: block; font: 600 14.5px var(--font-display); }
+.link-row__text span { display: block; font: 500 12px var(--font-mono); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.link-row:hover .link-row__icon { color: var(--brand, var(--accent)); border-color: var(--brand, var(--accent)); background: color-mix(in srgb, var(--brand, var(--accent)) 10%, transparent); }
+
+/* ==========================================================================
+   10. FOOTER
+   ========================================================================== */
+footer {
+  margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  font-size: 13px; color: var(--text-dim);
+}
+footer .mono { font-family: var(--font-mono); font-size: 12px; }
+.to-top {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px;
+  background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+  font: 500 12.5px var(--font-body); cursor: pointer; transition: color .2s, border-color .2s;
+}
+.to-top svg { width: 14px; height: 14px; transition: transform .25s var(--ease); }
+.to-top:hover { color: var(--text); border-color: var(--border-strong); }
+.to-top:hover svg { transform: translateY(-2px); }
+
+/* ==========================================================================
+   11. ANIMACIONES DE ENTRADA (staggered)
+   ========================================================================== */
+.reveal {
+  opacity: 0; transform: translateY(18px);
+  transition: opacity .7s var(--ease), transform .7s var(--ease);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+.reveal.in { opacity: 1; transform: none; }
+/* sin JS: todo visible */
+.no-js .reveal { opacity: 1; transform: none; }
+
+/* ==========================================================================
+   12. RESPONSIVE
+   ========================================================================== */
+@media (max-width: 680px) {
+  .wrap { padding-top: 24px; }
+  section { margin-top: 44px; }
+  .hero { padding: 22px; gap: 20px; }
+  .hero__top { align-items: flex-start; gap: 16px; }
+  .avatar { width: 68px; height: 68px; }
+  .socials { margin-left: 0; width: 100%; }
+  .hero__actions .btn { flex: 1; justify-content: center; }
+  .bento { grid-template-columns: 1fr 1fr; }
+  .project--wide, .project--half { grid-column: span 2; min-height: 0; }
+  .project--third { grid-column: span 1; }
+  .project--third:last-child { grid-column: span 2; }
+  .services { grid-template-columns: 1fr; }
+  .links { grid-template-columns: 1fr; }
+  .section-head p { display: none; }
+}
+@media (max-width: 380px) {
+  .hero__top { flex-direction: column; }
+}
+
+/* ==========================================================================
+   13. ACCESIBILIDAD — movimiento reducido
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .reveal { opacity: 1; transform: none; }
+}
+</style>
+</head>
+
+<body class="no-js">
+<script>document.body.classList.remove('no-js');</script>
+
+<!-- Fondo -->
+<div class="bg" aria-hidden="true">
+  <div class="bg__grid"></div>
+  <div class="bg__glow"></div>
+  <div class="bg__glow bg__glow--2"></div>
+</div>
+
+<!-- Sprite de íconos SVG (reutilizables con <use href="#i-...">) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- UI (trazo, estilo Lucide) -->
+    <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-arrow-ur" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+    <symbol id="i-broadcast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+    <symbol id="i-brush" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4M4 4h13l-2 4 2 4H4"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+
+    <!-- Marcas (relleno) -->
+    <symbol id="i-youtube" viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z"/></symbol>
+    <symbol id="i-twitch" viewBox="0 0 24 24" fill="currentColor"><path d="M11.57 4.71h1.72v5.14h-1.72zm4.72 0H18v5.14h-1.71zM6 0 1.71 4.29v15.42h5.15V24l4.28-4.29h3.43L22.29 12V0zm14.57 11.14-3.43 3.43h-3.43l-3 3v-3H6.86V1.71h13.71z"/></symbol>
+    <symbol id="i-instagram" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="currentColor"/></symbol>
+    <symbol id="i-tiktok" viewBox="0 0 24 24" fill="currentColor"><path d="M19.6 6.7a4.8 4.8 0 0 1-3.8-4.3V2h-3.4v13.7a2.9 2.9 0 1 1-2-2.8V9.4a6.3 6.3 0 1 0 5.4 6.3V8.8a8.2 8.2 0 0 0 4.8 1.5V6.9a4.8 4.8 0 0 1-1-.2z"/></symbol>
+    <symbol id="i-discord" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.3a18.4 18.4 0 0 0-5.5 0L8.6 3a19.7 19.7 0 0 0-4.9 1.5C.6 9.1-.3 13.7.1 18.2a19.9 19.9 0 0 0 6 3l1.3-2a12.9 12.9 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a12.9 12.9 0 0 1-2 1l1.3 2a19.8 19.8 0 0 0 6-3c.5-5.2-.9-9.8-3.6-13.8zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 0-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6 0-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.6 18.3 5 18.3 5c.7 1.6.2 2.9.1 3.2.8.8 1.3 1.9 1.3 3.2 0 4.6-2.8 5.6-5.5 5.9.5.4.9 1.1.9 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3z"/></symbol>
+    <symbol id="i-whatsapp" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.2-.8 1-1 1.2-.4.2-.7.1a8.1 8.1 0 0 1-4-3.5c-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.1 1.1 0 0 0-.8.4 3.4 3.4 0 0 0-1 2.5 5.9 5.9 0 0 0 1.2 3.1 13.5 13.5 0 0 0 5.2 4.6c1.9.8 2.7.9 3.6.8a3.1 3.1 0 0 0 2-1.4 2.5 2.5 0 0 0 .2-1.4c-.1-.1-.3-.2-.7-.4zM12 21.8a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 1 1 12 21.8zM20.5 3.5A12 12 0 0 0 1.6 18L0 24l6.2-1.6A12 12 0 0 0 12 24 12 12 0 0 0 20.5 3.5z"/></symbol>
+  </defs>
+</svg>
+
+<main class="wrap" id="top">
+
+  <!-- ===================================================================
+       HERO
+       =================================================================== -->
+  <header class="card hero reveal" data-spot>
+    <div class="hero__top">
+      <div class="avatar">
+        <div class="avatar__ring"></div>
+        <!-- Cambia la imagen aquí. Si falla, se muestra la inicial. -->
+        <img class="avatar__img" src="https://haikaar.carrd.co/assets/images/image01.jpg" alt="Avatar de Ha1kaa"
+             onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'avatar__fallback',textContent:'H'}))">
+      </div>
+      <div>
+        <h1>Ha<span class="one">1</span>kaa</h1>
+        <p class="hero__role">SimRacing Dev · Broadcast Producer</p>
+        <span class="status"><span class="status__dot"></span>Disponible para proyectos y transmisiones</span>
+      </div>
+    </div>
+
+    <p class="hero__bio">
+      Desarrollo <strong>herramientas, overlays e InSim</strong> para Live for Speed y Assetto Corsa,
+      y dirijo la producción de transmisiones de campeonatos en <strong>CSR Esports</strong>.
+    </p>
+
+    <div class="hero__actions">
+      <a class="btn btn--primary" data-link="discordCSR" target="_blank" rel="noopener">
+        Hablemos <svg class="arrow"><use href="#i-arrow"/></svg>
+      </a>
+      <a class="btn btn--ghost" href="#proyectos">Ver proyectos</a>
+      <nav class="socials" aria-label="Redes sociales">
+        <a class="icon-btn" data-link="youtube"   target="_blank" rel="noopener" aria-label="YouTube"><svg><use href="#i-youtube"/></svg></a>
+        <a class="icon-btn" data-link="twitch"    target="_blank" rel="noopener" aria-label="Twitch"><svg><use href="#i-twitch"/></svg></a>
+        <a class="icon-btn" data-link="instagram" target="_blank" rel="noopener" aria-label="Instagram"><svg><use href="#i-instagram"/></svg></a>
+        <a class="icon-btn" data-link="tiktok"    target="_blank" rel="noopener" aria-label="TikTok"><svg><use href="#i-tiktok"/></svg></a>
+        <a class="icon-btn" data-link="discordCSR" target="_blank" rel="noopener" aria-label="Discord"><svg><use href="#i-discord"/></svg></a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===================================================================
+       PROYECTOS
+       =================================================================== -->
+  <section id="proyectos">
+    <div class="section-head reveal">
+      <h2><span>01</span>Proyectos</h2>
+      <p>Lo que estoy construyendo ahora</p>
+    </div>
+
+    <div class="bento">
+      <!-- CSR Esports -->
+      <article class="card project project--half reveal" data-spot>
+        <div class="project__head">
+          <div class="project__logo"><svg><use href="#i-broadcast"/></svg></div>
+          <span class="badge badge--gold">★ Destacado</span>
+        </div>
+        <h3>CSR Esports <small>@csresportsok · ClubSimRacing</small></h3>
+        <p>Organización, producción y transmisión profesional de campeonatos de SimRacing en Assetto Corsa.</p>
+        <div class="project__links">
+          <a class="chip-link" data-link="twitch"  target="_blank" rel="noopener"><svg><use href="#i-twitch"/></svg>Twitch</a>
+          <a class="chip-link" data-link="youtube" target="_blank" rel="noopener"><svg><use href="#i-youtube"/></svg>YouTube</a>
+          <a class="chip-link" data-link="discordCSR" target="_blank" rel="noopener"><svg><use href="#i-discord"/></svg>Discord</a>
+        </div>
+      </article>
+
+      <!-- MotrixTools -->
+      <article class="card project project--half reveal" data-spot>
+        <div class="project__head">
+          <div class="project__logo"><svg><use href="#i-gauge"/></svg></div>
+          <span class="badge">En desarrollo</span>
+        </div>
+        <h3>MotrixTools <small>Desarrollo SimRacing</small></h3>
+        <p>Overlays de telemetría, InSim, apps Lua y herramientas a medida para ligas y transmisiones.</p>
+        <div class="tags">
+          <span class="tag">LFS InSim</span><span class="tag">Assetto Corsa</span>
+          <span class="tag">Lua</span><span class="tag">Overlays</span><span class="tag">Telemetría</span>
+        </div>
+      </article>
+
+      <!-- Mini proyectos / enlaces clave — duplica o edita libremente -->
+      <a class="card mini project--third is-link reveal" data-link="discordFA" target="_blank" rel="noopener" data-spot>
+        <div class="mini__top"><span class="badge">Comunidad</span><svg class="arrow-corner"><use href="#i-arrow-ur"/></svg></div>
+        <h4>Formula Argentina</h4>
+        <p>Liga · Discord</p>
+      </a>
+      <a class="card mini project--third is-link reveal" data-link="discordLFSBR" target="_blank" rel="noopener" data-spot>
+        <div class="mini__top"><span class="badge">Comunidad</span><svg class="arrow-corner"><use href="#i-arrow-ur"/></svg></div>
+        <h4>LFS Brasil</h4>
+        <p>Live for Speed · Discord</p>
+      </a>
+      <a class="card mini project--third is-link reveal" data-link="carrd" target="_blank" rel="noopener" data-spot>
+        <div class="mini__top"><span class="badge">+10 años</span><svg class="arrow-corner"><use href="#i-arrow-ur"/></svg></div>
+        <h4>Staff & Comunidades</h4>
+        <p>Administración y moderación</p>
+      </a>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       SERVICIOS
+       =================================================================== -->
+  <section id="servicios">
+    <div class="section-head reveal">
+      <h2><span>02</span>Qué hago</h2>
+      <p>Servicios para ligas y equipos</p>
+    </div>
+    <div class="services">
+      <div class="card service reveal" data-spot>
+        <div class="service__icon"><svg><use href="#i-broadcast"/></svg></div>
+        <h3>Transmisiones en vivo</h3>
+        <p>Dirección y producción de carreras: escenas, cámaras, gráficos y narración.</p>
+      </div>
+      <div class="card service reveal" data-spot>
+        <div class="service__icon"><svg><use href="#i-code"/></svg></div>
+        <h3>Herramientas & overlays</h3>
+        <p>InSim, apps Lua, timing y overlays de telemetría a medida para tu liga.</p>
+      </div>
+      <div class="card service reveal" data-spot>
+        <div class="service__icon"><svg><use href="#i-brush"/></svg></div>
+        <h3>Diseño gráfico & liveries</h3>
+        <p>Identidad visual de campeonatos, liveries, posters y paquetes para redes.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================
+       ENLACES Y CONTACTO
+       =================================================================== -->
+  <section id="contacto">
+    <div class="section-head reveal">
+      <h2><span>03</span>Enlaces & contacto</h2>
+      <p>Respondo más rápido por Discord</p>
+    </div>
+    <div class="links">
+      <a class="card link-row is-link reveal" data-link="youtube" target="_blank" rel="noopener" style="--brand:#FF3B3B" data-spot>
+        <span class="link-row__icon"><svg><use href="#i-youtube"/></svg></span>
+        <span class="link-row__text"><strong>YouTube</strong><span>@csresportsok</span></span>
+        <svg class="arrow-corner"><use href="#i-arrow-ur"/></svg>
+      </a>
+      <a class="card link-row is-link reveal" data-link="twitch" target="_blank" rel="noopener" style="--brand:#A970FF" data-spot>
+        <span class="link-row__icon"><svg><use href="#i-twitch"/></svg></span>
+        <span class="link-row__text"><strong>Twitch</strong><span>csresportsok</span></span>
+        <svg class="arrow-corner"><use href="#i-arrow-ur"/></svg>
+      </a>
+      <a class="card link-row is-link reveal" data-link="instagram" target="_blank" rel="noopener" style="--brand:#F472B6" data-spot>
+        <span class="link-row__icon"><svg><use href="#i-instagram"/></svg></span>
+        <span class="link-row__text"><strong>Instagram</strong><span>@csresportsok</span></span>
+        <svg class="arrow-corner"><use href="#i-arrow-ur"/></svg>
+      </a>
+      <a class="card link-row is-link reveal" data-link="tiktok" target="_blank" rel="noopener" style="--brand:#5EEAD4" data-spot>
+        <span class="link-row__icon"><svg><use href="#i-tiktok"/></svg></span>
+        <span class="link-row__text"><strong>TikTok</strong><span>@csresportsok</span></span>
+        <svg class="arrow-corner"><use href="#i-arrow-ur"/></svg>
+      </a>
+      <a class="card link-row is-link reveal" data-link="discordCSR" target="_blank" rel="noopener" style="--brand:#7C8CFF" data-spot>
+        <span class="link-row__icon"><svg><use href="#i-discord"/></svg></span>
+        <span class="link-row__text"><strong>Discord</strong><span>Comunidad CSR Esports</span></span>
+        <svg class="arrow-corner"><use href="#i-arrow-ur"/></svg>
+      </a>
+      <a class="card link-row is-link reveal" data-link="github" target="_blank" rel="noopener" style="--brand:#E8ECF2" data-spot>
+        <span class="link-row__icon"><svg><use href="#i-github"/></svg></span>
+        <span class="link-row__text"><strong>GitHub</strong><span>Código y herramientas</span></span>
+        <svg class="arrow-corner"><use href="#i-arrow-ur"/></svg>
+      </a>
+      <a class="card link-row is-link reveal" data-link="email" style="--brand:var(--accent)" data-spot>
+        <span class="link-row__icon"><svg><use href="#i-mail"/></svg></span>
+        <span class="link-row__text"><strong>Email</strong><span data-text="emailLabel">Escríbeme</span></span>
+        <svg class="arrow-corner"><use href="#i-arrow-ur"/></svg>
+      </a>
+      <a class="card link-row is-link reveal" data-link="whatsapp" target="_blank" rel="noopener" style="--brand:#34D399" data-spot>
+        <span class="link-row__icon"><svg><use href="#i-whatsapp"/></svg></span>
+        <span class="link-row__text"><strong>WhatsApp</strong><span>Mensaje directo</span></span>
+        <svg class="arrow-corner"><use href="#i-arrow-ur"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="reveal">
+    <span>© <span id="year">2026</span> Ha1kaa · <span class="mono">SimRacing · Broadcast · Dev</span></span>
+    <button class="to-top" type="button" aria-label="Volver arriba"><svg><use href="#i-up"/></svg>Arriba</button>
+  </footer>
+</main>
+
+<script>
+/* ==========================================================================
+   CONFIG — edita tus links aquí. Un link vacío ("") oculta su botón.
+   ========================================================================== */
+const LINKS = {
+  youtube:      "https://www.youtube.com/@csresportsok",
+  twitch:       "https://www.twitch.tv/csresportsok",
+  instagram:    "https://www.instagram.com/csresportsok",   // verificar
+  tiktok:       "https://www.tiktok.com/@csresportsok",     // verificar
+  discordCSR:   "https://discord.gg/xbAZu9NRqw",
+  discordFA:    "https://discord.gg/pbGKrWM8Yd",            // Formula Argentina
+  discordLFSBR: "https://discord.gg/TFbDrcRfe6",            // LFS Brasil
+  carrd:        "https://haikaar.carrd.co/",
+  github:       "https://github.com/ha1kaa",
+  email:        "",   // ej. "hola@tudominio.com" (se convierte en mailto:)
+  whatsapp:     ""    // ej. "5491112345678" (solo números, se convierte en wa.me)
+};
+
+(function () {
+  /* --- Aplicar links --- */
+  document.querySelectorAll('[data-link]').forEach(el => {
+    const key = el.dataset.link;
+    let url = LINKS[key];
+    if (!url) { el.remove(); return; }
+    if (key === 'email')    { url = 'mailto:' + url; const l = el.querySelector('[data-text="emailLabel"]'); if (l) l.textContent = LINKS.email; }
+    if (key === 'whatsapp') url = 'https://wa.me/' + url.replace(/\D/g, '');
+    el.href = url;
+  });
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  /* --- Entrada escalonada con IntersectionObserver --- */
+  const items = [...document.querySelectorAll('.reveal')];
+  // índice de stagger relativo a hermanos dentro del mismo contenedor
+  items.forEach(el => {
+    const sibs = [...el.parentElement.children].filter(c => c.classList.contains('reveal'));
+    el.style.setProperty('--i', sibs.indexOf(el));
+  });
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || !('IntersectionObserver' in window)) {
+    items.forEach(el => el.classList.add('in'));
+  } else {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    items.forEach(el => io.observe(el));
+  }
+
+  /* --- Spotlight que sigue al cursor (solo desktop) --- */
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches && !reduce) {
+    document.querySelectorAll('[data-spot]').forEach(card => {
+      card.addEventListener('pointermove', e => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+        card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+      });
+    });
+  }
+
+  /* --- Volver arriba --- */
+  document.querySelector('.to-top').addEventListener('click', () =>
+    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' }));
+})();
+</script>
+</body>
+</html>
