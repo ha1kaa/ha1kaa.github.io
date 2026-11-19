@@ -32,6 +32,9 @@
   --gold:          #F5B544;               /* solo para badges destacados */
   --gold-rgb:      245, 181, 68;
   --live:          #34D399;               /* punto "disponible" */
+  --discord:       #5865F2;               /* azul Discord (fondo y detalles) */
+  --discord-rgb:   88, 101, 242;
+  --discord-soft:  #A5B0FF;
 
   --radius-lg:     20px;
   --radius-md:     14px;
@@ -65,35 +68,89 @@ svg { flex-shrink: 0; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
 
 /* ==========================================================================
-   3. FONDO VIVO — grilla técnica + gradiente radial lento
+   3. FONDO VIVO — aurora azul Discord + grilla en movimiento + líneas de velocidad
+   (todo con transform/opacity: barato para la GPU)
    ========================================================================== */
 .bg {
   position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, #0B0E1F 0%, var(--bg) 60%);
 }
+/* grilla en perspectiva que avanza lento (efecto "pista") */
 .bg__grid {
+  position: absolute; left: -50%; right: -50%; bottom: -10%; height: 70%;
+  background-image:
+    linear-gradient(rgba(var(--discord-rgb), .22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--discord-rgb), .22) 1px, transparent 1px);
+  background-size: 56px 56px;
+  transform: perspective(500px) rotateX(62deg);
+  transform-origin: 50% 100%;
+  mask-image: linear-gradient(transparent 0%, #000 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(transparent 0%, #000 55%, transparent 100%);
+  opacity: .55;
+  animation: gridMove 4s linear infinite;
+}
+@keyframes gridMove { to { background-position: 0 56px; } }
+/* grilla plana tenue arriba */
+.bg__grid-top {
   position: absolute; inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
   background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 60% 45% at 50% 0%, #000 20%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 45% at 50% 0%, #000 20%, transparent 100%);
 }
+/* blobs de aurora */
 .bg__glow {
-  position: absolute; width: 900px; height: 900px; left: 50%; top: -420px;
-  transform: translateX(-50%);
-  background: radial-gradient(circle, rgba(var(--accent-rgb), .13), transparent 60%);
-  filter: blur(20px);
-  animation: drift 18s ease-in-out infinite alternate;
+  position: absolute; border-radius: 50%; filter: blur(60px); will-change: transform;
+}
+.bg__glow--1 {
+  width: 720px; height: 520px; left: 50%; top: -260px; margin-left: -360px;
+  background: radial-gradient(circle, rgba(var(--discord-rgb), .6), transparent 65%);
+  animation: aurora1 16s ease-in-out infinite alternate;
 }
 .bg__glow--2 {
-  width: 600px; height: 600px; top: 55%; left: 85%;
-  background: radial-gradient(circle, rgba(99, 102, 241, .08), transparent 60%);
-  animation-duration: 24s;
+  width: 520px; height: 520px; right: -180px; top: 30%;
+  background: radial-gradient(circle, rgba(var(--discord-rgb), .35), transparent 65%);
+  animation: aurora2 22s ease-in-out infinite alternate;
 }
-@keyframes drift {
-  from { transform: translate(-50%, 0) scale(1); }
-  to   { transform: translate(-44%, 40px) scale(1.08); }
+.bg__glow--3 {
+  width: 460px; height: 460px; left: -200px; top: 60%;
+  background: radial-gradient(circle, rgba(var(--accent-rgb), .10), transparent 65%);
+  animation: aurora2 26s ease-in-out infinite alternate-reverse;
+}
+@keyframes aurora1 {
+  0%   { transform: translate(-80px, 0) scale(1); }
+  100% { transform: translate(90px, 40px) scale(1.15); }
+}
+@keyframes aurora2 {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-60px, -80px) scale(1.2); }
+}
+/* líneas de velocidad (estilo telemetría / SimRacing) */
+.bg__streaks span {
+  position: absolute; left: 0; height: 1px; width: 220px; border-radius: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--discord-rgb), .9), rgba(165, 176, 255, 1));
+  box-shadow: 0 0 8px rgba(var(--discord-rgb), .8);
+  opacity: 0;
+  animation: streak 7s linear infinite;
+}
+.bg__streaks span:nth-child(1) { top: 14%; animation-delay: 0s;   animation-duration: 6s; }
+.bg__streaks span:nth-child(2) { top: 31%; animation-delay: 2.2s; animation-duration: 8s;  width: 160px; }
+.bg__streaks span:nth-child(3) { top: 47%; animation-delay: 4.1s; animation-duration: 5.5s; }
+.bg__streaks span:nth-child(4) { top: 63%; animation-delay: 1.3s; animation-duration: 9s;  width: 280px; }
+.bg__streaks span:nth-child(5) { top: 78%; animation-delay: 5.6s; animation-duration: 7s;  width: 140px; }
+.bg__streaks span:nth-child(6) { top: 90%; animation-delay: 3.3s; animation-duration: 6.5s; }
+@keyframes streak {
+  0%   { transform: translateX(-300px); opacity: 0; }
+  10%  { opacity: .7; }
+  60%  { opacity: .5; }
+  100% { transform: translateX(110vw); opacity: 0; }
+}
+/* viñeta para mantener el contenido legible */
+.bg__vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 80% at 50% 45%, transparent 45%, rgba(5,6,10,.55) 100%);
 }
 
 /* ==========================================================================
@@ -262,6 +319,66 @@ section { margin-top: 56px; }
 .mini h4 { margin: 4px 0 0; font: 600 15px var(--font-display); }
 .mini p { margin: 0; font-size: 13px; color: var(--text-dim); }
 
+/* botón-tarjeta (abre modal) */
+button.card { font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; }
+
+/* ==========================================================================
+   7b. MODAL — trayectoria
+   ========================================================================== */
+.modal {
+  width: min(640px, calc(100% - 32px)); max-height: min(86vh, 900px); padding: 0; margin: auto;
+  color: var(--text); background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg); box-shadow: 0 30px 80px -20px rgba(0,0,0,.8), 0 0 0 1px rgba(var(--discord-rgb), .12);
+  overflow: hidden;
+}
+.modal[open] { animation: modalIn .35s var(--ease); }
+.modal::backdrop { background: rgba(3, 4, 8, .7); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+@keyframes modalIn { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.modal__inner { max-height: inherit; overflow-y: auto; padding: 26px; overscroll-behavior: contain; }
+.modal__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+.modal__head h3 { margin: 12px 0 4px; font: 700 26px/1.1 var(--font-display); letter-spacing: -.02em; }
+.modal__head p { margin: 0; color: var(--text-muted); font-size: 14px; }
+.modal__close {
+  display: grid; place-items: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px; cursor: pointer;
+  color: var(--text-muted); background: var(--surface-2); border: 1px solid var(--border);
+  transition: color .2s, border-color .2s, transform .25s var(--ease);
+}
+.modal__close svg { width: 18px; height: 18px; }
+.modal__close:hover { color: var(--text); border-color: var(--border-strong); transform: rotate(90deg); }
+.modal__label {
+  display: flex; align-items: center; gap: 8px; margin: 24px 0 10px;
+  font: 600 12px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted);
+}
+.modal__label em {
+  font-style: normal; padding: 1px 7px; border-radius: 6px; font-size: 11px; letter-spacing: 0;
+  color: var(--discord-soft); background: rgba(var(--discord-rgb), .12); border: 1px solid rgba(var(--discord-rgb), .28);
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span {
+  padding: 5px 10px; border-radius: 8px; font-size: 13px; color: #C9D1DE;
+  background: var(--surface-2); border: 1px solid var(--border);
+  transition: border-color .2s, color .2s, background-color .2s;
+}
+.chips span:hover { color: #fff; border-color: rgba(var(--discord-rgb), .5); background: rgba(var(--discord-rgb), .08); }
+/* lista de cargos con línea de tiempo */
+.roles { list-style: none; margin: 0; padding: 0 0 0 18px; position: relative; display: grid; gap: 14px; }
+.roles::before {
+  content: ""; position: absolute; left: 4px; top: 6px; bottom: 6px; width: 1px;
+  background: linear-gradient(var(--discord), rgba(var(--discord-rgb), .05));
+}
+.roles li { position: relative; }
+.roles li::before {
+  content: ""; position: absolute; left: -18px; top: 6px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--bg); border: 2px solid var(--discord); box-shadow: 0 0 10px rgba(var(--discord-rgb), .6);
+}
+.roles strong { display: block; font: 600 14.5px/1.3 var(--font-display); color: var(--text); }
+.roles p { margin: 3px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--text-muted); }
+.chips .chip--bot::after {
+  content: "BOT"; margin-left: 6px; padding: 0 4px; border-radius: 4px; vertical-align: 1px;
+  font: 600 9.5px/1.5 var(--font-mono); color: #fff; background: var(--discord);
+}
+.chips .chip--more { color: var(--text-dim); border-style: dashed; }
+
 /* ==========================================================================
    8. SERVICIOS
    ========================================================================== */
@@ -274,6 +391,55 @@ section { margin-top: 56px; }
 .service__icon svg { width: 18px; height: 18px; }
 .service h3 { margin: 0 0 6px; font: 600 15.5px var(--font-display); }
 .service p { margin: 0; font-size: 13.5px; color: var(--text-muted); line-height: 1.55; }
+
+/* ==========================================================================
+   8b. MI HISTORIA — timeline desplegable
+   ========================================================================== */
+.story { padding: 28px; }
+.story__intro { margin: 0 0 22px; font-size: 16px; color: var(--text-muted); }
+.story__intro strong { color: var(--text); }
+.story__body {
+  position: relative; max-height: 380px; overflow: hidden;
+  transition: max-height .7s var(--ease);
+  -webkit-mask-image: linear-gradient(#000 60%, transparent);
+          mask-image: linear-gradient(#000 60%, transparent);
+}
+.story.is-open .story__body { -webkit-mask-image: none; mask-image: none; }
+
+.timeline { list-style: none; margin: 0; padding: 0 0 0 26px; position: relative; display: grid; gap: 26px; }
+.timeline::before {
+  content: ""; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px;
+  background: linear-gradient(var(--discord), rgba(var(--discord-rgb), .25) 70%, var(--accent));
+}
+.timeline li { position: relative; }
+.timeline li::before {
+  content: ""; position: absolute; left: -26px; top: 4px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--discord); box-shadow: 0 0 0 4px rgba(var(--discord-rgb), .12);
+}
+.timeline__now::before { border-color: var(--accent) !important; box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .15), 0 0 16px rgba(var(--accent-rgb), .6) !important; }
+.timeline__date {
+  display: inline-block; padding: 2px 8px; border-radius: 6px; font: 600 11.5px var(--font-mono);
+  color: var(--discord-soft); background: rgba(var(--discord-rgb), .1); border: 1px solid rgba(var(--discord-rgb), .25);
+}
+.timeline__now .timeline__date { color: var(--accent); background: rgba(var(--accent-rgb), .08); border-color: rgba(var(--accent-rgb), .3); }
+.timeline h3 { margin: 8px 0 6px; font: 600 18px/1.25 var(--font-display); }
+.timeline p { margin: 0 0 10px; color: var(--text-muted); font-size: 14.5px; line-height: 1.7; }
+.timeline p:last-child { margin-bottom: 0; }
+.timeline strong { color: var(--text); font-weight: 600; }
+.timeline blockquote {
+  margin: 14px 0 0; padding: 14px 16px; border-radius: 12px; font: 500 15px/1.5 var(--font-display); color: var(--text);
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), .08), rgba(var(--discord-rgb), .06));
+  border: 1px solid rgba(var(--accent-rgb), .2);
+}
+.story__toggle {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 44px; margin-top: 18px;
+  border-radius: 12px; cursor: pointer; font: 600 14px var(--font-body); color: var(--text);
+  background: rgba(var(--discord-rgb), .1); border: 1px solid rgba(var(--discord-rgb), .3);
+  transition: background-color .25s, border-color .25s;
+}
+.story__toggle:hover { background: rgba(var(--discord-rgb), .18); border-color: rgba(var(--discord-rgb), .55); }
+.story__toggle svg { width: 16px; height: 16px; transition: transform .35s var(--ease); }
+.story.is-open .story__toggle svg { transform: rotate(180deg); }
 
 /* ==========================================================================
    9. LINKS
@@ -361,9 +527,13 @@ footer .mono { font-family: var(--font-mono); font-size: 12px; }
 
 <!-- Fondo -->
 <div class="bg" aria-hidden="true">
-  <div class="bg__grid"></div>
-  <div class="bg__glow"></div>
+  <div class="bg__grid-top"></div>
+  <div class="bg__glow bg__glow--1"></div>
   <div class="bg__glow bg__glow--2"></div>
+  <div class="bg__glow bg__glow--3"></div>
+  <div class="bg__grid"></div>
+  <div class="bg__streaks"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="bg__vignette"></div>
 </div>
 
 <!-- Sprite de íconos SVG (reutilizables con <use href="#i-...">) -->
@@ -483,11 +653,12 @@ footer .mono { font-family: var(--font-mono); font-size: 12px; }
         <h4>LFS Brasil</h4>
         <p>Live for Speed · Discord</p>
       </a>
-      <a class="card mini project--third is-link reveal" data-link="carrd" target="_blank" rel="noopener" data-spot>
-        <div class="mini__top"><span class="badge">+10 años</span><svg class="arrow-corner"><use href="#i-arrow-ur"/></svg></div>
+      <!-- Abre el modal #staff con toda la trayectoria -->
+      <button type="button" class="card mini project--third is-link reveal" data-open="staff" data-spot>
+        <div class="mini__top"><span class="badge badge--gold">+10 años</span><svg class="arrow-corner"><use href="#i-plus"/></svg></div>
         <h4>Staff & Comunidades</h4>
-        <p>Administración y moderación</p>
-      </a>
+        <p>+35 comunidades · ver todas</p>
+      </button>
     </div>
   </section>
 
@@ -519,11 +690,81 @@ footer .mono { font-family: var(--font-mono); font-size: 12px; }
   </section>
 
   <!-- ===================================================================
+       MI HISTORIA — línea de tiempo desplegable
+       =================================================================== -->
+  <section id="historia">
+    <div class="section-head reveal">
+      <h2><span>03</span>Mi historia</h2>
+      <p>Casi 10 años en comunidades</p>
+    </div>
+
+    <article class="card story reveal" data-spot>
+      <p class="story__intro">
+        ¡Hola! Soy <strong>Naitly</strong>, o como muchos me conocen hoy en día, <strong>Haiki</strong>.
+        Les cuento un poco sobre mí y mi historia en este mundillo.
+      </p>
+
+      <div class="story__body" id="story-body">
+        <ol class="timeline">
+          <li>
+            <span class="timeline__date">2017</span>
+            <h3>Los inicios: GGcraft</h3>
+            <p>Llevo moderando y administrando comunidades desde hace casi 10 años. A mediados de 2017 comencé en este mundo del staff, y desde entonces me atrapó por completo. Empecé desde lo más bajo, brindando soporte en un servidor de Minecraft llamado <strong>GGcraft</strong>, uno de los más importantes de su época. Mi meta en aquel entonces era llegar a ser Moderador: me llamaba mucho la atención aplicar sanciones, mantener el orden entre los usuarios y todo lo que implicaba ese rol.</p>
+          </li>
+          <li>
+            <span class="timeline__date">~2018</span>
+            <h3>DiscordThings: el antes y el después</h3>
+            <p>Un año y medio después ya tenía experiencia en Soporte, Moderación y Administración básica. Ahí se me presentó la oportunidad de trabajar en una botlist llamada <strong>DiscordThings</strong>, donde no solo mejoré en muchos aspectos, sino que aprendí a configurar bots de forma profesional y hasta a desarrollarlos. Ese proyecto me hizo darme cuenta de que esto era lo que realmente me apasionaba, y decidí tomármelo en serio, como si fuera un trabajo (aunque no remunerado), sabiendo que a futuro me serviría muchísimo. Lamentablemente, la botlist cerró con el tiempo y no volvió a abrir.</p>
+            <p>Poco después, uno de los antiguos administradores me ofreció unirme al staff de la comunidad de <strong>BadBunny</strong>, oferta que acepté sin pensarlo. Principalmente ayudaba en soporte, pero a los pocos meses tuve que retirarme por cuestiones personales.</p>
+          </li>
+          <li>
+            <span class="timeline__date">2019 – 2020</span>
+            <h3>De vuelta a Minecraft: LauncherFenix</h3>
+            <p>Volví al mundo de Minecraft, donde había comenzado todo, y empecé a explorar la configuración y el desarrollo de plugins. Entonces llegó una oportunidad muy especial: trabajar para uno de los launchers que más adoraba de chico, <strong>LauncherFenix</strong>. Ya contaba con la experiencia para gestionar comunidades extremadamente grandes y coordinar equipos de staff de manera profesional. Trabajé en servidores como <strong>FenixCraft, ItzCrafts y FarLands</strong>, donde conocí a muchísimas personas que me ayudaron a seguir creciendo; muchas de esas amistades aún las conservo.</p>
+            <p>También pasé por servidores grandes y pequeños como ToxicCraft, NexusRPG, Melmaland, KingdomsRPG, FelesCraft, CelestialCraft, OneDeath, JamonCraft, FantasyCraft y LegacyCraft.</p>
+          </li>
+          <li>
+            <span class="timeline__date">Hasta 2023</span>
+            <h3>Bots, comunidades y dirección</h3>
+            <p>Tras dos meses de descanso, me reintegré a comunidades de Discord orientadas a bots. Fui manager de varios bots del estudio <strong>Linsx</strong>: Nyox, Linsx, Alpix y LunaBot. Con el tiempo, el estudio lanzó su propio launcher de Minecraft, CubeLauncher (hoy KorvexLaunch).</p>
+            <p>En paralelo colaboré en <strong>Mundo Mascota</strong>, un proyecto para ayudar a personas con el cuidado de sus mascotas. Formé parte por primera vez de la comunidad de un creador de contenido muy reconocido de Fortnite, <strong>Iraa Community</strong>: entré como ayudante y en una o dos semanas pasé a Administrador/Manager. Después me sumé a <strong>Gymbros Español</strong> como moderador, y fui uno de los directores de <strong>Minecraft Staff Hispanos</strong>. También participé en Furia Network, Hylum Network y Harux Network, entre otros.</p>
+            <p>A finales de 2023 decidí hacer una pausa temporal en el área de staff.</p>
+          </li>
+          <li>
+            <span class="timeline__date">Abril 2024</span>
+            <h3>Builders Academy: una familia</h3>
+            <p>Me contactaron para formar parte de <strong>Builders Academy</strong>, una academia hispanohablante para formarse como Builder profesional, con clases y plugins exclusivos. Colaboramos con vMario y más adelante con Bobicraft, Keystone Builds y PIXELMOD. Fueron meses maravillosos: aprendí muchísimo y encontré una familia que me ayudó tanto en lo laboral como en lo personal. En ese período también trabajé para <strong>Awita</strong> y <strong>Roblox en Español</strong>, con experiencias igual de positivas.</p>
+          </li>
+          <li>
+            <span class="timeline__date">Noviembre 2024</span>
+            <h3>Cerrar una etapa</h3>
+            <p>Hacia finales de 2024 noté que ya no disfrutaba las cosas como antes. Me sentía agotado, mi salud no estaba en su mejor momento y necesitaba parar. En noviembre me retiré de manera oficial: después de 8 años, era momento de priorizarme. Esa decisión me ayudó mucho: retomé mis estudios y trabajé en mejorar mi vida.</p>
+            <p>Todos estos años me dieron conocimientos que hoy uso en lo que hago: gestión de eventos en mi localidad, diseño gráfico para empresas locales e internacionales y mi propio equipo de producción de transmisiones de SimRacing en Twitch. Mi yo de hace 9 años tenía razón: todo este camino me iba a servir.</p>
+          </li>
+          <li class="timeline__now">
+            <span class="timeline__date">2025 — Hoy</span>
+            <h3>CSR Esports</h3>
+            <p>En 2025 decidí llevar todo ese conocimiento a un proyecto propio relacionado con una de mis grandes pasiones: el SimRacing. Así nació <strong>CSR Esports (Club Sim Racing)</strong>, enfocado en la organización, producción y transmisión de eventos y campeonatos. La idea no es solo crear carreras, sino construir una comunidad y ofrecer una experiencia profesional para pilotos y organizaciones.</p>
+            <p>Hoy me encargo de la gestión general, la coordinación con otras comunidades y ligas, el diseño gráfico, la comunicación, el marketing y la producción de las transmisiones, junto a un equipo que colabora en narración, gestión y producción. CSR Esports terminó siendo la combinación de todo lo que aprendí en casi 10 años.</p>
+            <p>Lo más curioso es que, después de decir en 2024 que necesitaba alejarme del staff, terminé regresando de una manera completamente diferente: ya no formando parte del equipo de otra comunidad, sino construyendo y liderando mi propio proyecto.</p>
+            <blockquote>¿Será este mi regreso al mundo del staff? :) Lo descubriré pronto.</blockquote>
+          </li>
+        </ol>
+      </div>
+
+      <button type="button" class="story__toggle" aria-expanded="false" aria-controls="story-body">
+        <span>Leer historia completa</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </article>
+  </section>
+
+  <!-- ===================================================================
        ENLACES Y CONTACTO
        =================================================================== -->
   <section id="contacto">
     <div class="section-head reveal">
-      <h2><span>03</span>Enlaces & contacto</h2>
+      <h2><span>04</span>Enlaces & contacto</h2>
       <p>Respondo más rápido por Discord</p>
     </div>
     <div class="links">
@@ -570,6 +811,61 @@ footer .mono { font-family: var(--font-mono); font-size: 12px; }
     </div>
   </section>
 
+  <!-- ===================================================================
+       MODAL — Trayectoria Staff & Comunidades (edita las listas aquí)
+       =================================================================== -->
+  <dialog class="modal" id="staff" aria-labelledby="staff-title">
+    <div class="modal__inner">
+      <div class="modal__head">
+        <div>
+          <span class="badge badge--gold">+10 años de experiencia</span>
+          <h3 id="staff-title">Staff & Comunidades</h3>
+          <p>Administración, moderación y gestión de comunidades desde 2017.</p>
+        </div>
+        <button type="button" class="modal__close" data-close aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <h4 class="modal__label">Experiencia por cargo <em>7</em></h4>
+      <ul class="roles">
+        <li><strong>Producer de Twitch / Event Organizer</strong>
+          <p>Producción profesional de transmisiones en vivo, coordinación de eventos y supervisión técnica durante las emisiones.</p></li>
+        <li><strong>Head Administrator</strong>
+          <p>Gestión general del servidor, toma de decisiones estratégicas y supervisión de todas las áreas operativas.</p></li>
+        <li><strong>Head Staff</strong>
+          <p>Liderazgo del equipo: coordinación de tareas internas, asignación de responsabilidades y buen funcionamiento del staff.</p></li>
+        <li><strong>Community Manager</strong>
+          <p>Comunicación con los miembros, gestión de redes sociales y fortalecimiento del engagement de la comunidad.</p></li>
+        <li><strong>Administration</strong>
+          <p>Apoyo en tareas internas, organización de recursos y cumplimiento de los procedimientos del servidor o proyecto.</p></li>
+        <li><strong>Moderation</strong>
+          <p>Mantener el orden, hacer cumplir las normas y garantizar un ambiente seguro y respetuoso.</p></li>
+        <li><strong>Configurador de Discord & Bots</strong>
+          <p>Configuración técnica de servidores, automatizaciones y optimización de bots para mejorar la experiencia de los usuarios.</p></li>
+      </ul>
+
+      <h4 class="modal__label">Organizaciones <em>12</em></h4>
+      <div class="chips">
+        <span>Minecraft Staffs Hispanos</span><span>Mith Network</span><span>KyonMC</span>
+        <span>Furia Network</span><span>Hylum Network</span><span>Harux Network</span>
+        <span>IAMS League</span><span>Awita</span><span>OrioniX Development</span>
+        <span>Academy Studios</span><span>Formula Argentina</span><span class="chip--more">Entre otros…</span>
+      </div>
+
+      <h4 class="modal__label">Comunidades donde trabajé <em>27</em></h4>
+      <div class="chips">
+        <span>GGCrafts</span><span>DiscordThings</span><span>ToxicCraft</span><span>NexusRPG</span>
+        <span>Melmaland</span><span>KingdomsRPG</span><span>LauncherFenix</span><span>BadBunny</span>
+        <span>LowéArmy</span><span class="chip--bot">Kazuto</span><span>FenixCraft</span><span>ItzCrafts</span>
+        <span>FelesCraft</span><span>CelestialCraft</span><span>OneDeath</span><span>JamonCraft</span>
+        <span>FarLands</span><span class="chip--bot">Nyox</span><span class="chip--bot">Linsx</span><span class="chip--bot">Alpix</span>
+        <span class="chip--bot">LunaBot</span><span>CubeLauncher</span><span>FantasyCraft</span><span>LegacyCraft</span>
+        <span>Mundo Mascota</span><span>Iraa Community</span><span>Gymbros Español</span>
+      </div>
+    </div>
+  </dialog>
+
   <!-- FOOTER -->
   <footer class="reveal">
     <span>© <span id="year">2026</span> Ha1kaa · <span class="mono">SimRacing · Broadcast · Dev</span></span>
@@ -586,7 +882,7 @@ const LINKS = {
   twitch:       "https://www.twitch.tv/csresportsok",
   instagram:    "https://www.instagram.com/csresportsok",   // verificar
   tiktok:       "https://www.tiktok.com/@csresportsok",     // verificar
-  discordCSR:   "https://discord.gg/xbAZu9NRqw",
+  discordCSR:   "https://discord.gg/fraKrQ8z7C",
   discordFA:    "https://discord.gg/pbGKrWM8Yd",            // Formula Argentina
   discordLFSBR: "https://discord.gg/TFbDrcRfe6",            // LFS Brasil
   carrd:        "https://haikaar.carrd.co/",
@@ -634,6 +930,32 @@ const LINKS = {
         card.style.setProperty('--my', (e.clientY - r.top) + 'px');
       });
     });
+  }
+
+  /* --- Modal de trayectoria --- */
+  document.querySelectorAll('[data-open]').forEach(btn => {
+    const dlg = document.getElementById(btn.dataset.open);
+    if (!dlg || !dlg.showModal) return;
+    btn.addEventListener('click', () => dlg.showModal());
+    dlg.addEventListener('click', e => { if (e.target === dlg || e.target.closest('[data-close]')) dlg.close(); });
+  });
+
+  /* --- Historia desplegable --- */
+  const story = document.querySelector('.story');
+  if (story) {
+    const body = story.querySelector('.story__body');
+    const btn = story.querySelector('.story__toggle');
+    const label = btn.querySelector('span');
+    btn.addEventListener('click', () => {
+      const open = !story.classList.contains('is-open');
+      story.classList.toggle('is-open', open);
+      btn.setAttribute('aria-expanded', open);
+      label.textContent = open ? 'Mostrar menos' : 'Leer historia completa';
+      body.style.maxHeight = open ? body.scrollHeight + 'px' : '';
+      if (!open) story.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    });
+    // al expandir, si cambia el tamaño de pantalla, recalcular altura
+    addEventListener('resize', () => { if (story.classList.contains('is-open')) body.style.maxHeight = body.scrollHeight + 'px'; });
   }
 
   /* --- Volver arriba --- */
